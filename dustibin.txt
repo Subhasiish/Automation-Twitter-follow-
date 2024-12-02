@@ -1,0 +1,155 @@
+// {
+//   "short_name": "React App",
+//   "name": "Create React App Sample",
+//   "icons": [
+//     {
+//       "src": "favicon.ico",
+//       "sizes": "64x64 32x32 24x24 16x16",
+//       "type": "image/x-icon"
+//     },
+//     {
+//       "src": "logo192.png",
+//       "type": "image/png",
+//       "sizes": "192x192"
+//     },
+//     {
+//       "src": "logo512.png",
+//       "type": "image/png",
+//       "sizes": "512x512"
+//     }
+//   ],
+//   "start_url": ".",
+//   "display": "standalone",
+//   "theme_color": "#000000",
+//   "background_color": "#ffffff"
+// }
+
+
+
+// import logo from './logo.svg';
+// import './App.css';
+
+// function App() {
+//   return (
+//     <div className="App">
+//       <header className="App-header">
+//         <img src={logo} className="App-logo" alt="logo" />
+//         <p>
+//           Edit <code>src/App.js</code> and save to reload.
+//         </p>
+//         <a
+//           className="App-link"
+//           href="https://reactjs.org"
+//           target="_blank"
+//           rel="noopener noreferrer"
+//         >
+//           Learn React
+//         </a>
+//       </header>
+//     </div>
+//   );
+// }
+
+// export default App;
+
+ "action": {
+    "default_popup": "index.html",
+    "default_icon": {
+      "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+    }
+  },
+
+
+
+
+console.log("Content script loaded");
+
+// Utility to generate a random delay between 1-3 seconds
+const getRandomDelay = () => Math.random() * 2000 + 1000; // Random delay between 1-3 seconds
+
+const followUsers = async () => {
+  const followBtns = Array.from(document.querySelectorAll("[data-testid]"))
+    .filter(btn => btn.getAttribute("data-testid")?.includes("follow") && btn.textContent.trim() === "Follow");
+
+  for (const [i, btn] of followBtns.entries()) {
+    await new Promise(resolve => setTimeout(() => {
+      if (btn.textContent.trim() === "Follow") {
+        btn.click();
+        console.log(`Followed user ${i + 1}`);
+      } else {
+        console.log(`User ${i + 1} already followed.`);
+      }
+      resolve();
+    }, getRandomDelay()));
+  }
+  console.log(`Followed ${followBtns.length} users.`);
+};
+
+const clickShowMore = async () => {
+  const showMoreBtn = document.querySelector("div[aria-label='Show more'][role='button']");
+  if (showMoreBtn) {
+    showMoreBtn.click();
+    console.log("Clicked 'Show More'");
+    await new Promise(resolve => setTimeout(resolve, getRandomDelay()));
+  }
+};
+
+// Function to simulate mouse hover and leave
+const simulateHover = (selector) => {
+  const element = document.querySelector(selector);
+
+  if (element) {
+    // Simulate hover
+    const hoverEvent = new MouseEvent("mouseover", { bubbles: true, cancelable: true, view: window });
+    element.dispatchEvent(hoverEvent);
+    console.log("Hover simulated.");
+
+    // Simulate leaving hover after 1 second
+    setTimeout(() => {
+      const mouseOutEvent = new MouseEvent("mouseout", { bubbles: true, cancelable: true, view: window });
+      element.dispatchEvent(mouseOutEvent);
+      console.log("Mouse out simulated.");
+    }, 1000);
+  } else {
+    console.log("Element not found:", selector);
+  }
+};
+
+// Main function to execute all tasks
+const runFollowAutomation = async (tabTestId) => {
+  const tab = document.querySelector(`[data-testid='${tabTestId}']`);
+  if (tab) {
+    tab.click();
+    console.log(`Switched to ${tabTestId} tab`);
+
+    await new Promise(resolve => setTimeout(resolve, 1000)); // Wait for tab switch
+
+    let moreUsersToFollow = true;
+    while (moreUsersToFollow) {
+      await clickShowMore(); // Click "Show More"
+      await followUsers();   // Follow new users
+
+      // Hover over a specific element as part of the process (example)
+      simulateHover("YOUR_SELECTOR"); // Replace 'YOUR_SELECTOR' with the desired selector
+
+      // Check if more "Show More" or "Follow" buttons are available
+      const showMoreAvailable = !!document.querySelector("div[aria-label='Show more'][role='button']");
+      const followBtnsRemaining = document.querySelectorAll("[data-testid]").length > 0;
+
+      moreUsersToFollow = showMoreAvailable || followBtnsRemaining;
+      if (!moreUsersToFollow) console.log("No more users to follow.");
+    }
+  } else {
+    console.log(`Tab ${tabTestId} not found.`);
+  }
+};
+
+// Listen for messages from the popup to trigger the function
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === "startFollow") {
+    runFollowAutomation("AppTabBar_Explore_Link");
+    sendResponse({ status: "Automation started" });
+  }
+});
